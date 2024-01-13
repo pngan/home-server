@@ -120,14 +120,14 @@ services:
   ##############################################################################
   # Covid19 server
   # Prerequisite - pngan/covid19-server exists on docker hub
-  covid19-server:
-    container_name: covid19
-    image: pngan/covid19-server
-    restart: unless-stopped
-    expose:
-      - "8080"
-    networks:
-      - home-server-network
+  # covid19-server:
+  #   container_name: covid19
+  #   image: pngan/covid19-server
+  #   restart: unless-stopped
+  #   expose:
+  #     - "8080"
+  #   networks:
+  #     - home-server-network
 
 
   # ##############################################################################
