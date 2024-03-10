@@ -22,9 +22,13 @@ services:
     image: nginx:1.15-alpine
     restart: unless-stopped
     volumes:
+      - type: bind            # This folder holds the files to be served
+        source: ./apps
+        target: /apps
       - ./data/nginx:/etc/nginx/conf.d
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
+
     ports:
       - "80:80"
       - "443:443"
@@ -120,14 +124,14 @@ services:
   ##############################################################################
   # Covid19 server
   # Prerequisite - pngan/covid19-server exists on docker hub
-  # covid19-server:
-  #   container_name: covid19
-  #   image: pngan/covid19-server
-  #   restart: unless-stopped
-  #   expose:
-  #     - "8080"
-  #   networks:
-  #     - home-server-network
+  covid19-server:
+    container_name: covid19
+    image: pngan/covid19-server
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - home-server-network
 
 
   # ##############################################################################

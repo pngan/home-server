@@ -16,6 +16,11 @@ The main component is an nginx reverse proxy which passes commands to a number o
 `docker-compose stop ipmon`
 `docker-compose start ipmon`
 
+### To serve files
+
+Copy the files into the `apps` folder. This is mapped in the `nginx` container as the `/apps` folder.
+
+
 ## Trouble Shooting
 ### When `docker-compose up` fails 
 
