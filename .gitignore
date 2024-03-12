@@ -3,4 +3,4 @@
 etc-pihole
 etc-dnsmasq.d
 ovh.conf
-apps/*
+apps/*.exe
