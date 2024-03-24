@@ -25,6 +25,9 @@ services:
       - type: bind            # This folder holds the files to be served
         source: ./apps
         target: /apps
+      - type: bind            # This folder holds the files to be served
+        source: ./todo
+        target: /todo
       - ./data/nginx:/etc/nginx/conf.d
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
