@@ -1,2 +1,3 @@
 # home-server
-Configuration files for home server, based on Ubuntu, with Caddy reverse proxy, and docker-compose services.
+
+This supersedes the repo `home-server-old`, which is based on Ubunut, and a nginx reverse proxy.
