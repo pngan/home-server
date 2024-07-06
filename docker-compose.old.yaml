@@ -1,0 +1,225 @@
+version: '3.7'
+
+networks:
+  home-server-network:
+    name: home-server-network
+
+volumes:
+  sqldata:
+  ipmon:
+  logdata:
+  grafana:
+
+secrets:
+  ovh.conf:
+    file: ./ovh.conf
+
+services:
+  ##############################################################################
+  # Reverse proxy
+  nginx:
+    container_name: nginx
+    image: nginx:1.15-alpine
+    restart: unless-stopped
+    volumes:
+      - type: bind            # This folder holds the files to be served
+        source: ./apps
+        target: /apps
+      - type: bind            # This folder holds the files to be served
+        source: ./todo
+        target: /todo
+      - ./data/nginx:/etc/nginx/conf.d
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - home-server-network
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+  
+  ##############################################################################
+  # Let's Encrypt installer and updater for the reverse proxy
+  certbot:
+    container_name: certbot
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - home-server-network
+        
+
+  # ##############################################################################
+  # # Prometheus docker telemetry
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: monitoring_grafana
+  #   restart: unless-stopped
+  #   ports:
+  #     - 3000:3000
+  #   links:
+  #     - prometheus:prometheus
+  #   volumes:
+  #     - 'grafana:/var/lib/grafana'
+  #   depends_on:
+  #     - prometheus    
+  #   networks:
+  #     - home-server-network
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: prometheus
+  #   ports:
+  #     - 9090:9090
+  #   command:
+  #     - --config.file=/etc/prometheus/prometheus.yml
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #   depends_on:
+  #     - cadvisor
+  #   networks:
+  #     - home-server-network
+  # cadvisor:
+  #   image: gcr.io/google-containers/cadvisor:latest
+  #   container_name: cadvisor
+  #   ports:
+  #     - 8090:8080
+  #   volumes:
+  #     - /:/rootfs:ro
+  #     - /var/run:/var/run:rw
+  #     - /sys:/sys:ro
+  #     - /var/lib/docker/:/var/lib/docker:ro
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - home-server-network
+  # redis:
+  #   image: redis:latest
+  #   container_name: redis
+  #   ports:
+  #     - 6379:6379
+  #   networks:
+  #     - home-server-network
+
+  ##############################################################################
+  # Ping server
+  ping-server:
+    container_name: ping
+    image: pngan/ping-server
+    restart: unless-stopped
+    expose:
+      - "8000"
+    networks:
+      - home-server-network
+
+  ##############################################################################
+  # Gamebox server
+  gamebox-server:
+    container_name: gamebox
+    image: pngan/gamebox
+    restart: unless-stopped
+    networks:
+      - home-server-network
+
+  ##############################################################################
+  # Covid19 server
+  # Prerequisite - pngan/covid19-server exists on docker hub
+  covid19-server:
+    container_name: covid19
+    image: pngan/covid19-server
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - home-server-network
+
+
+  # ##############################################################################
+  # # pihole ad blocking dns server
+  # # More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "8053:80/tcp"
+    environment:
+      TZ: 'Pacific/Auckland'
+      WEBPASSWORD: 'ngan'
+    # Volumes store your data between container upgrades
+    volumes:
+       - './etc-pihole/:/etc/pihole/'
+       - './etc-dnsmasq.d/:/etc/dnsmasq.d/'
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # Recommended but not required (DHCP needs NET_ADMIN)
+    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - home-server-network
+    restart: unless-stopped      
+
+  # ##############################################################################
+  # SQL Server
+  sqlserver:
+    container_name: sql1
+    image:  mcr.microsoft.com/mssql/server:2019-CU5-ubuntu-18.04
+    ports:
+      - "1433:1433"
+    # uncomment below for first time run
+    #environment:
+      #ACCEPT_EULA: 'Y'
+      #SA_PASSWORD: <This1sWherePasswordGoes>
+      #MSSQL_PID: 'Developer'
+    volumes:
+        - 'sqldata:/var/opt/mssql'
+    restart: unless-stopped
+
+  # ##############################################################################
+  # Seq Server for logging
+  #
+  # Test with Postman query: https://docs.datalust.co/docs/posting-raw-events
+  seqserver:
+    container_name: seq
+    image: datalust/seq:latest
+    ports:
+      - 8020:80
+      - 5341:5341
+    environment:
+      ACCEPT_EULA: 'Y'
+    volumes:
+      - 'logdata:/data'
+    networks:
+      - home-server-network
+    restart: unless-stopped
+
+  ##############################################################################
+  # ipmon server
+  # Monitors external ip address and updates DNS A record redirect if changed
+  ipmon:
+    container_name: ipmon
+    image: pngan/ipmon:latest
+    restart: unless-stopped
+    volumes:
+      - 'ipmon:/ipmon'
+    networks:
+      - home-server-network
+    command: "dotnet NetCore.Docker.dll"
+    secrets:
+      - ovh.conf
+
+  ##############################################################################
+  # secrets test
+  secrets_test:
+    container_name: secrets_test
+    image: alpine:latest
+    entrypoint: "cat /run/secrets/ovh.conf"
+    secrets:
+      - ovh.conf

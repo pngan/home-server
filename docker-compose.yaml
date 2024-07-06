@@ -1,0 +1,43 @@
+version: '3.7'
+
+networks:
+  home-server-network:
+    name: home-server-network
+
+volumes:
+  ipmon:
+
+secrets:
+  ovh.conf:
+    file: ./ovh.conf
+
+services:
+
+  ##############################################################################
+  # ipmon server
+  # Monitors external ip address and updates DNS A record redirect if changed
+  # Requires the DNS A Record site name to be specified in the environment 
+  # variable DNSARECORD. Easiet way is to use a .env file with an entry, e.g.
+  # DNSARECORD=example.com
+  ipmon:
+    container_name: ipmon
+    image: pngan/ipmon:latest
+    environment:
+      DNSARECORD: ${DNSARECORD}
+    restart: unless-stopped
+    volumes:
+      - 'ipmon:/ipmon'
+    networks:
+      - home-server-network
+    command: "dotnet NetCore.Docker.dll"
+    secrets:
+      - ovh.conf
+
+  ##############################################################################
+  # secrets test
+  secrets_test:
+    container_name: secrets_test
+    image: alpine:latest
+    entrypoint: "cat /run/secrets/ovh.conf"
+    secrets:
+      - ovh.conf
