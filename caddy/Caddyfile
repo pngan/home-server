@@ -1,0 +1,7 @@
+{
+    email 4557674+pngan@users.noreply.github.com
+}
+
+ping.nganfamily.com {
+    reverse_proxy ping-server:8000
+}

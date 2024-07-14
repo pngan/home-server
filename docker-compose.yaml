@@ -6,12 +6,35 @@ networks:
 
 volumes:
   ipmon:
+  caddy_data:
+    external: true
+  caddy_config:
+  logdata:
 
 secrets:
   ovh.conf:
     file: ./ovh.conf
 
 services:
+
+  ##############################################################################
+  # caddy - reverse proxy
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    container_name: caddy
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/site:/srv
+      - ./caddy/caddy_data:/data
+      - ./caddy/caddy_config:/config
+    networks:
+      - home-server-network
+  
+
 
   ##############################################################################
   # ipmon server
@@ -33,6 +56,18 @@ services:
     secrets:
       - ovh.conf
 
+
+  ##############################################################################
+  # Ping server
+  ping-server:
+    container_name: ping
+    image: pngan/ping-server
+    restart: unless-stopped
+    expose:
+      - "8000"
+    networks:
+      - home-server-network
+
   ##############################################################################
   # secrets test
   secrets_test:
@@ -41,3 +76,59 @@ services:
     entrypoint: "cat /run/secrets/ovh.conf"
     secrets:
       - ovh.conf
+
+  ##############################################################################
+  # Gamebox server
+  gamebox-server:
+    container_name: gamebox
+    image: pngan/gamebox
+    restart: unless-stopped
+    networks:
+      - home-server-network
+
+  # ##############################################################################
+  # # pihole ad blocking dns server
+  # # More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "8053:80/tcp"
+    environment:
+      TZ: 'Pacific/Auckland'
+      WEBPASSWORD: 'ngan'
+    # Volumes store your data between container upgrades
+    volumes:
+       - './etc-pihole/:/etc/pihole/'
+       - './etc-dnsmasq.d/:/etc/dnsmasq.d/'
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    # Recommended but not required (DHCP needs NET_ADMIN)
+    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - home-server-network
+    restart: unless-stopped
+
+  # ##############################################################################
+  # Seq Server for logging
+  #
+  # Test with Postman query: https://docs.datalust.co/docs/posting-raw-events
+  seqserver:
+    container_name: seq
+    image: datalust/seq:latest
+    ports:
+      - 8020:80
+      - 5341:5341
+    environment:
+      ACCEPT_EULA: 'Y'
+    volumes:
+      - 'logdata:/data'
+    networks:
+      - home-server-network
+    restart: unless-stopped
