@@ -4,3 +4,4 @@ etc-dnsmasq.d/
 etc-pihole/
 caddy_data/
 caddy_config/
+db/
