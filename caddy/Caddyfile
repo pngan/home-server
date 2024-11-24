@@ -5,3 +5,7 @@
 ping.nganfamily.com {
     reverse_proxy ping-server:8000
 }
+
+auth.nganfamily.com {
+    reverse_proxy keycloak:8080
+}
