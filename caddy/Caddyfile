@@ -6,6 +6,14 @@ ping.nganfamily.com {
     reverse_proxy ping-server:8000
 }
 
+gamebox.nganfamily.com {
+    reverse_proxy gamebox
+}
+
 auth.nganfamily.com {
     reverse_proxy keycloak:8080
+}
+
+notes.nganfamily.com {
+    reverse_proxy webfrontend:8080
 }

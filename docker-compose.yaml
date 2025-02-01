@@ -138,6 +138,18 @@ services:
       - home-server-network
     restart: unless-stopped
 
+
+  # ##############################################################################
+  # transactionsnotes
+  #  https://github.com/pngan/transactionnotes 
+  #
+  # This is home project for downloading bank transactions and attaching notes to them
+  #
+  # - postgres for keycloak
+  # - keycloak for auth
+  # - transactionnotes dashboard, api and web
+  #
+
   postgres:
     image: postgres:16.2
     volumes:
@@ -175,3 +187,46 @@ services:
       - keycloak_network
       - home-server-network
 
+  aspire-dashboard:
+    container_name: "aspire-dashboard"
+    image: "mcr.microsoft.com/dotnet/aspire-dashboard:8.0"
+    environment:
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    ports:
+    - target: 18888
+      published: 18888
+    restart: unless-stopped
+    networks:
+      - keycloak_network
+      - home-server-network
+  apiservice:
+    container_name: "apiservice"
+    image: "pngan/apiservice:latest"
+    environment:
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      HTTP_PORTS: "8080"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://aspire-dashboard:18888"
+      OTEL_SERVICE_NAME: "apiservice"
+    restart: unless-stopped
+    networks:
+      - keycloak_network
+      - home-server-network
+  webfrontend:
+    container_name: "webfrontend"
+    image: "pngan/webfrontend:latest"
+    environment:
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      HTTP_PORTS: "8080"
+      services__apiservice__http__0: "http://apiservice:8080"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://aspire-dashboard:18888"
+      OTEL_SERVICE_NAME: "webfrontend"
+    restart: unless-stopped
+    networks:
+      - keycloak_network
+      - home-server-network
