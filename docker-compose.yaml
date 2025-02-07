@@ -12,7 +12,6 @@ volumes:
     external: true
   caddy_config:
   logdata:
-  postgres_data:
     driver: local
 
 secrets:
@@ -153,7 +152,7 @@ services:
   postgres:
     image: postgres:16.2
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -226,6 +225,9 @@ services:
       services__apiservice__http__0: "http://apiservice:8080"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://aspire-dashboard:18888"
       OTEL_SERVICE_NAME: "webfrontend"
+      TRANSNOTES__AUTHORITY: ${AUTHORITY}
+      TRANSNOTES__CLIENTSECRET: ${CLIENTSECRET}
+      TRANSNOTES__CLIENTID:  ${CLIENTID}
     restart: unless-stopped
     networks:
       - keycloak_network

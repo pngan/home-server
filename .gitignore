@@ -5,3 +5,4 @@ etc-pihole/
 caddy_data/
 caddy_config/
 db/
+postgres_data/
