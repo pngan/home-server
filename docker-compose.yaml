@@ -213,7 +213,6 @@ services:
       TRANSNOTES__CLIENTSECRET: ${CLIENTSECRET}
       TRANSNOTES__CLIENTID: ${CLIENTID}
       TRANSNOTES__AUDIENCE: ${AUDIENCE}
-      DETAILEDERRORS: true
     restart: unless-stopped
     networks:
       - keycloak_network
@@ -234,7 +233,6 @@ services:
       TRANSNOTES__CLIENTSECRET: ${CLIENTSECRET}
       TRANSNOTES__CLIENTID: ${CLIENTID}
       TRANSNOTES__AUDIENCE: ${AUDIENCE}
-      DETAILEDERRORS: true
     restart: unless-stopped
     networks:
       - keycloak_network
