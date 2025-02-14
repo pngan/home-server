@@ -209,6 +209,11 @@ services:
       HTTP_PORTS: "8080"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://aspire-dashboard:18888"
       OTEL_SERVICE_NAME: "apiservice"
+      TRANSNOTES__AUTHORITY: ${AUTHORITY}
+      TRANSNOTES__CLIENTSECRET: ${CLIENTSECRET}
+      TRANSNOTES__CLIENTID: ${CLIENTID}
+      TRANSNOTES__AUDIENCE: ${AUDIENCE}
+      DETAILEDERRORS: true
     restart: unless-stopped
     networks:
       - keycloak_network
@@ -227,7 +232,9 @@ services:
       OTEL_SERVICE_NAME: "webfrontend"
       TRANSNOTES__AUTHORITY: ${AUTHORITY}
       TRANSNOTES__CLIENTSECRET: ${CLIENTSECRET}
-      TRANSNOTES__CLIENTID:  ${CLIENTID}
+      TRANSNOTES__CLIENTID: ${CLIENTID}
+      TRANSNOTES__AUDIENCE: ${AUDIENCE}
+      DETAILEDERRORS: true
     restart: unless-stopped
     networks:
       - keycloak_network
