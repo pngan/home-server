@@ -149,8 +149,8 @@ services:
   # - transactionnotes dashboard, api and web
   #
 
-  postgres:
-    image: postgres:16.2
+  postgres: 
+    image: postgres:16.2 # Upgrading this requires deleting postgres_data, which will mean setting up keycloak from scratch
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
     environment:
@@ -161,7 +161,7 @@ services:
       - keycloak_network
 
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0.6
+    image: quay.io/keycloak/keycloak:23.0.6 # Leave this version. Haven't had much success upgrading to newer version
     command: start
     environment:
       KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
