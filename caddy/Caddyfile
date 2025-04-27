@@ -17,3 +17,7 @@ auth.nganfamily.com {
 notes.nganfamily.com {
     reverse_proxy webfrontend:8080
 }
+
+aspire.nganfamily.com {
+    reverse_proxy aspire-dashboard:18888
+}
