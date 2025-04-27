@@ -149,14 +149,19 @@ services:
   # - transactionnotes dashboard, api and web
   #
 
-  postgres: 
+  keycloak_postgres: 
     image: postgres:16.2 # Upgrading this requires deleting postgres_data, which will mean setting up keycloak from scratch
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${KEYCLOAK_POSTGRES_DB}
+      POSTGRES_USER: ${KEYCLOAK_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${KEYCLOAK_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U ${KEYCLOAK_POSTGRES_USER} -d ${KEYCLOAK_POSTGRES_DB} -c 'SELECT 1' || exit 1"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
     networks:
       - keycloak_network
 
@@ -174,14 +179,15 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres/${POSTGRES_DB}
-      KC_DB_USERNAME: ${POSTGRES_USER}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_DB_URL: jdbc:postgresql://keycloak_postgres/${KEYCLOAK_POSTGRES_DB}
+      KC_DB_USERNAME: ${KEYCLOAK_POSTGRES_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_POSTGRES_PASSWORD}
     ports:
       - 8080:8080
     restart: always
     depends_on:
-      - postgres
+      keycloak_postgres:
+        condition: service_healthy
     networks:
       - keycloak_network
       - home-server-network
