@@ -200,13 +200,15 @@ services:
     ports:
     - target: 18888
       published: 18888
+    - target: 18889
+      published: 18889
     restart: unless-stopped
     networks:
       - keycloak_network
       - home-server-network
   apiservice:
     container_name: "apiservice"
-    image: "pngan/apiservice:latest"
+    image: "pngan/apiservice:20250512"
     environment:
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
@@ -225,7 +227,7 @@ services:
       - home-server-network
   webfrontend:
     container_name: "webfrontend"
-    image: "pngan/webfrontend:latest"
+    image: "pngan/webfrontend:20250512"
     environment:
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
@@ -243,3 +245,33 @@ services:
     networks:
       - keycloak_network
       - home-server-network
+  centraldbserver:
+    container_name: "centraldbserver"
+    image: "docker.io/library/postgres:17.2"
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+      POSTGRES_USER: ${CENTRALDBSERVER_USERNAME}
+      POSTGRES_PASSWORD: ${CENTRALDBSERVER_PASSWORD}
+      POSTGRES_DB: centraldb
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://aspire-dashboard:18889"
+      OTEL_SERVICE_NAME: "centraldbserver"
+    restart: unless-stopped
+    networks:
+      - home-server-network
+  centraldb-migration:
+    container_name: "centraldb-migration"
+    image: "pngan/centraldb-migration:20250512"
+    environment:
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+      ConnectionStrings__centraldb: ${CENTRALDB_CONNECTION_STRING}
+      Database__Central__MigrationUser__Username: ${DATABASE_CENTRAL_MIGRATIONUSER_USERNAME}
+      Database__Central__MigrationUser__Password: ${DATABASE_CENTRAL_MIGRATIONUSER_PASSWORD}
+      Database__Central__AppUser__Username: ${DATABASE_CENTRAL_APPUSER_USERNAME}
+      Database__Central__AppUser__Password: ${DATABASE_CENTRAL_APPUSER_PASSWORD}
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://aspire-dashboard:18889"
+      OTEL_SERVICE_NAME: "centraldb-migration"
+    networks:
+      - home-server-network      
