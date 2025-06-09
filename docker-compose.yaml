@@ -191,6 +191,10 @@ services:
     networks:
       - keycloak_network
       - home-server-network
+    logging:
+      options:
+        max-size: "1m"
+        max-file: "3"
 
   aspire-dashboard:
     container_name: "aspire-dashboard"
@@ -208,7 +212,7 @@ services:
       - home-server-network
   apiservice:
     container_name: "apiservice"
-    image: "pngan/apiservice:20250512"
+    image: "pngan/apiservice:latest"
     environment:
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
@@ -225,9 +229,25 @@ services:
     networks:
       - keycloak_network
       - home-server-network
+    logging:
+      options:
+        max-size: "1m"
+        max-file: "3"
+    dns:
+      - 8.8.8.8     # Google
+      - 1.1.1.1     # Cloudflare
+      
   webfrontend:
+
+# Before running this docker compose on a new machine, we need to create a stable location for
+# storing the data protection keys needed by asp.net
+#
+# mkdir -p ~/aspnet-dataprotection-keys
+# chmod 700 ~/aspnet-dataprotection-keys
+# chown $(id -u):$(id -g) ~/aspnet-dataprotection-keys
+
     container_name: "webfrontend"
-    image: "pngan/webfrontend:20250512"
+    image: "pngan/webfrontend:latest"
     environment:
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
@@ -241,10 +261,20 @@ services:
       TRANSNOTES__CLIENTSECRET: ${CLIENTSECRET}
       TRANSNOTES__CLIENTID: ${CLIENTID}
       TRANSNOTES__AUDIENCE: ${AUDIENCE}
+      ASPNETCORE_ENVIRONMENT: "Development"
     restart: unless-stopped
     networks:
       - keycloak_network
       - home-server-network
+    volumes:
+      - ./aspnet-dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
+    logging:
+      options:
+        max-size: "1m"
+        max-file: "3"
+    dns:
+      - 8.8.8.8     # Google
+      - 1.1.1.1     # Cloudflare
   centraldbserver:
     container_name: "centraldbserver"
     image: "docker.io/library/postgres:17.2"
@@ -259,9 +289,13 @@ services:
     restart: unless-stopped
     networks:
       - home-server-network
+    logging:
+      options:
+        max-size: "1m"
+        max-file: "3"
   centraldb-migration:
     container_name: "centraldb-migration"
-    image: "pngan/centraldb-migration:20250512"
+    image: "pngan/centraldb-migration:latest"
     environment:
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
       OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
@@ -274,4 +308,14 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://aspire-dashboard:18889"
       OTEL_SERVICE_NAME: "centraldb-migration"
     networks:
-      - home-server-network      
+      - home-server-network
+  #######################################################################
+  netshoot:
+    image: nicolaka/netshoot
+    command: tail -f /dev/null
+    networks:
+      - keycloak_network
+      - home-server-network
+    dns:
+      - 8.8.8.8     # Google
+      - 1.1.1.1     # Cloudflare

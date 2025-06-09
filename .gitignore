@@ -6,3 +6,4 @@ caddy_data/
 caddy_config/
 db/
 postgres_data/
+aspnet-dataprotection-keys/
