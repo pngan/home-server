@@ -22,7 +22,7 @@ services:
   ##############################################################################
   # caddy - reverse proxy
   caddy:
-    image: caddy:latest
+    image: caddy:2.10.2
     restart: unless-stopped
     container_name: caddy
     ports:
