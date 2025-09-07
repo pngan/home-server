@@ -59,6 +59,9 @@ services:
     command: "dotnet NetCore.Docker.dll"
     secrets:
       - ovh.conf
+    dns:
+      - 8.8.8.8     # Google
+      - 1.1.1.1     # Cloudflare
 
 
   ##############################################################################
