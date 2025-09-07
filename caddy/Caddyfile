@@ -1,5 +1,8 @@
 {
     email 4557674+pngan@users.noreply.github.com
+    
+    # Specify the ACME CA to use for all domains
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
 }
 
 ping.nganfamily.com {

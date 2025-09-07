@@ -37,8 +37,10 @@ services:
       - ./caddy/caddy_config:/config
     networks:
       - home-server-network
-  
-
+    dns:
+      - 8.8.8.8     # Google
+      - 1.1.1.1     # Cloudflare
+      
 
   ##############################################################################
   # ipmon server
