@@ -24,3 +24,7 @@ notes.nganfamily.com {
 aspire.nganfamily.com {
     reverse_proxy aspire-dashboard:18888
 }
+
+seemyaccount.com {
+    reverse_proxy ping-server:8000
+}
