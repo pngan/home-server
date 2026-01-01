@@ -3,6 +3,8 @@ networks:
     name: home-server-network
   keycloak_network:
     driver: bridge
+  mattermost-network:
+    driver: bridge
 
 volumes:
   ipmon:
@@ -11,6 +13,7 @@ volumes:
   caddy_config:
   logdata:
     driver: local
+  mattermost-db-data:
 
 secrets:
   ovh.conf:
@@ -25,6 +28,11 @@ services:
     image: caddy:2.10.2
     restart: unless-stopped
     container_name: caddy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"   # Rotate after 5 Megabytes
+        max-file: "3"     # Keep only the 3 most recent log files
     ports:
       - 80:80
       - 443:443
@@ -104,6 +112,11 @@ services:
       - "53:53/udp"
       - "67:67/udp"
       - "8053:80/tcp"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"   # Rotate after 5 Megabytes
+        max-file: "3"     # Keep only the 3 most recent log files
     environment:
       TZ: 'Pacific/Auckland'
       WEBPASSWORD: 'ngan'
@@ -319,6 +332,55 @@ services:
     networks:
       - keycloak_network
       - home-server-network
+      - mattermost-network
     dns:
       - 8.8.8.8     # Google
       - 1.1.1.1     # Cloudflare
+
+  ##############################################################################
+# Mattermost - Team Collaboration
+  mattermost-db:
+    container_name: mattermost-db
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${MM_DB_USER:-mmuser}
+      - POSTGRES_PASSWORD=${MM_DB_PASSWORD}
+      - POSTGRES_DB=${MM_DB_NAME:-mattermost}
+    volumes:
+      - mattermost-db-data:/var/lib/postgresql/data
+    networks:
+      - mattermost-network
+
+  mattermost:
+    container_name: mattermost
+    image: mattermost/mattermost-team-edition:latest
+    restart: unless-stopped
+    depends_on:
+      - mattermost-db
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    user: "2000:2000"
+    environment:
+      # Database connection
+      - MM_SQLSETTINGS_DRIVERNAME=postgres
+      - MM_SQLSETTINGS_DATASOURCE=postgres://${MM_DB_USER:-mmuser}:${MM_DB_PASSWORD}@mattermost-db:5432/${MM_DB_NAME:-mattermost}?sslmode=disable&connect_timeout=10
+      # Site URL (Critical for Caddy/Websockets)
+      - MM_SERVICESETTINGS_SITEURL=https://message.nganfamily.com
+      - MM_SERVICESETTINGS_LISTENADDRESS=:8065
+    volumes:
+      # Mount your NFS path to the container's data directory
+      - ${MM_NFS_PATH}/config:/mattermost/config
+      - ${MM_NFS_PATH}/data:/mattermost/data
+      - ${MM_NFS_PATH}/logs:/mattermost/logs
+      - ${MM_NFS_PATH}/plugins:/mattermost/plugins
+      - ${MM_NFS_PATH}/client-plugins:/mattermost/client/plugins
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - mattermost-network
+      - home-server-network
+    labels:
+      - "caddy=chat.seemyaccount.com"
+      - "caddy.reverse_proxy={{upstreams 8065}}"      
+

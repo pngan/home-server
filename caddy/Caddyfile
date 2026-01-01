@@ -28,3 +28,32 @@ aspire.nganfamily.com {
 seemyaccount.com {
     reverse_proxy ping-server:8000
 }
+
+# --- Mattermost ---
+
+message.nganfamily.com {
+    # Increase max body size for large file uploads (e.g., 50MB)
+    request_body {
+        max_size 50MB
+    }
+
+    reverse_proxy mattermost:8065 {
+        # Optional: ensure headers are preserved if you hit login loops
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+    }
+}
+
+
+# --- Matrix / Element ---
+
+matrix.nganfamily.com {
+    reverse_proxy synapse:8008
+    request_body {
+        max_size 50MB
+    }
+}
+
+element.nganfamily.com {
+    reverse_proxy element:80
+}
