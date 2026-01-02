@@ -354,7 +354,7 @@ services:
 
   mattermost:
     container_name: mattermost
-    image: mattermost/mattermost-team-edition:latest
+    image: mattermost/mattermost-team-edition:release-11
     restart: unless-stopped
     depends_on:
       - mattermost-db
@@ -383,4 +383,3 @@ services:
     labels:
       - "caddy=chat.seemyaccount.com"
       - "caddy.reverse_proxy={{upstreams 8065}}"      
-
