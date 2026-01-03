@@ -14,11 +14,25 @@ volumes:
   logdata:
     driver: local
   mattermost-db-data:
+  immich_db:
+  model-cache:
+  # New Docker-managed NFS volume for Immich Data
+  immich_nfs_data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=192.168.1.2,rw,nolock,hard,nointr,rsize=32768,wsize=32768"
+      device: ":/volume1/nganfamily_immich"
 
 secrets:
   ovh.conf:
     file: ./ovh.conf
 
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "3m"
+    max-file: "3"
 
 services:
 
@@ -28,11 +42,7 @@ services:
     image: caddy:2.10.2
     restart: unless-stopped
     container_name: caddy
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"   # Rotate after 5 Megabytes
-        max-file: "3"     # Keep only the 3 most recent log files
+    logging: *default-logging
     ports:
       - 80:80
       - 443:443
@@ -64,6 +74,7 @@ services:
       - 'ipmon:/ipmon'
     networks:
       - home-server-network
+    logging: *default-logging
     command: "dotnet NetCore.Docker.dll"
     secrets:
       - ovh.conf
@@ -82,6 +93,7 @@ services:
       - "8000"
     networks:
       - home-server-network
+    logging: *default-logging
 
   ##############################################################################
   # secrets test
@@ -91,6 +103,7 @@ services:
     entrypoint: "cat /run/secrets/ovh.conf"
     secrets:
       - ovh.conf
+    logging: *default-logging
 
   ##############################################################################
   # Gamebox server
@@ -100,6 +113,7 @@ services:
     restart: unless-stopped
     networks:
       - home-server-network
+    logging: *default-logging
 
   # ##############################################################################
   # # pihole ad blocking dns server
@@ -112,11 +126,7 @@ services:
       - "53:53/udp"
       - "67:67/udp"
       - "8053:80/tcp"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"   # Rotate after 5 Megabytes
-        max-file: "3"     # Keep only the 3 most recent log files
+    logging: *default-logging
     environment:
       TZ: 'Pacific/Auckland'
       WEBPASSWORD: 'ngan'
@@ -152,6 +162,7 @@ services:
     networks:
       - home-server-network
     restart: unless-stopped
+    logging: *default-logging
 
 
   # ##############################################################################
@@ -180,6 +191,7 @@ services:
       retries: 10
     networks:
       - keycloak_network
+    logging: *default-logging
 
   keycloak:
     image: quay.io/keycloak/keycloak:23.0.6 # Leave this version. Haven't had much success upgrading to newer version
@@ -207,10 +219,7 @@ services:
     networks:
       - keycloak_network
       - home-server-network
-    logging:
-      options:
-        max-size: "1m"
-        max-file: "3"
+    logging: *default-logging
 
   aspire-dashboard:
     container_name: "aspire-dashboard"
@@ -226,6 +235,7 @@ services:
     networks:
       - keycloak_network
       - home-server-network
+    logging: *default-logging
   apiservice:
     container_name: "apiservice"
     image: "pngan/apiservice:latest"
@@ -245,10 +255,7 @@ services:
     networks:
       - keycloak_network
       - home-server-network
-    logging:
-      options:
-        max-size: "1m"
-        max-file: "3"
+    logging: *default-logging
     dns:
       - 8.8.8.8     # Google
       - 1.1.1.1     # Cloudflare
@@ -282,12 +289,9 @@ services:
     networks:
       - keycloak_network
       - home-server-network
+    logging: *default-logging
     volumes:
       - ./aspnet-dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
-    logging:
-      options:
-        max-size: "1m"
-        max-file: "3"
     dns:
       - 8.8.8.8     # Google
       - 1.1.1.1     # Cloudflare
@@ -305,10 +309,7 @@ services:
     restart: unless-stopped
     networks:
       - home-server-network
-    logging:
-      options:
-        max-size: "1m"
-        max-file: "3"
+    logging: *default-logging
   centraldb-migration:
     container_name: "centraldb-migration"
     image: "pngan/centraldb-migration:latest"
@@ -325,6 +326,7 @@ services:
       OTEL_SERVICE_NAME: "centraldb-migration"
     networks:
       - home-server-network
+    logging: *default-logging
   #######################################################################
   netshoot:
     image: nicolaka/netshoot
@@ -336,6 +338,7 @@ services:
     dns:
       - 8.8.8.8     # Google
       - 1.1.1.1     # Cloudflare
+    logging: *default-logging
 
   ##############################################################################
 # Mattermost - Team Collaboration
@@ -351,6 +354,7 @@ services:
       - mattermost-db-data:/var/lib/postgresql/data
     networks:
       - mattermost-network
+    logging: *default-logging
 
   mattermost:
     container_name: mattermost
@@ -380,6 +384,78 @@ services:
     networks:
       - mattermost-network
       - home-server-network
+    logging: *default-logging
     labels:
       - "caddy=chat.seemyaccount.com"
-      - "caddy.reverse_proxy={{upstreams 8065}}"      
+      - "caddy.reverse_proxy={{upstreams 8065}}"
+
+  ##############################################################################
+  # Immich - Photo and Video hosting
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    volumes:
+      - immich_nfs_data:/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD}
+      - DB_USERNAME=${IMMICH_DB_USERNAME}
+      - DB_DATABASE_NAME=${IMMICH_DB_NAME}
+      - DB_HOSTNAME=immich_postgres
+      - REDIS_HOSTNAME=immich_redis
+      - IMMICH_MACHINE_LEARNING_URL=http://immich-machine-learning:3003
+    ports:
+      - '2283:2283'
+    depends_on:
+      - immich_redis
+      - immich_postgres
+      - immich-machine-learning
+    restart: always
+    networks:
+      - home-server-network
+    logging: *default-logging
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    volumes:
+      - model-cache:/cache
+    environment:
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD}
+      - DB_USERNAME=${IMMICH_DB_USERNAME}
+      - DB_DATABASE_NAME=${IMMICH_DB_NAME}
+      - DB_HOSTNAME=immich_postgres
+      - REDIS_HOSTNAME=immich_redis
+    restart: always
+    networks:
+      - home-server-network
+    logging: *default-logging
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+  immich_redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:9@sha256:fb8d272e529ea567b9bf1302245796f21a2672b8368ca3fcb938ac334e613c8f
+    healthcheck:
+      test: redis-cli ping || exit 1
+    restart: always
+    networks:
+      - home-server-network
+    logging: *default-logging
+
+  immich_postgres:
+    container_name: immich_postgres
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    environment:
+      - POSTGRES_PASSWORD=${IMMICH_DB_PASSWORD}
+      - POSTGRES_USER=${IMMICH_DB_USERNAME}
+      - POSTGRES_DB=${IMMICH_DB_NAME}
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    volumes:
+      - immich_db:/var/lib/postgresql/data
+    shm_size: 128mb
+    restart: always
+    networks:
+      - home-server-network
+    logging: *default-logging

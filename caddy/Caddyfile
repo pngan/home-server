@@ -34,7 +34,7 @@ seemyaccount.com {
 message.nganfamily.com {
     # Increase max body size for large file uploads (e.g., 50MB)
     request_body {
-        max_size 50MB
+        max_size 10GB
     }
 
     reverse_proxy mattermost:8065 {
@@ -44,16 +44,13 @@ message.nganfamily.com {
     }
 }
 
+# --- Immich for photos ---
 
-# --- Matrix / Element ---
-
-matrix.nganfamily.com {
-    reverse_proxy synapse:8008
+photos.nganfamily.com {
     request_body {
-        max_size 50MB
+        max_size 10GB
     }
-}
-
-element.nganfamily.com {
-    reverse_proxy element:80
+    reverse_proxy immich-server:2283 {
+        flush_interval -1
+    }
 }
