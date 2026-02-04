@@ -54,3 +54,16 @@ photos.nganfamily.com {
         flush_interval -1
     }
 }
+
+
+# --- Example aspire app ---
+apps.nganfamily.com {
+    reverse_proxy 192.168.1.11:8080 {
+        health_uri /health
+        health_interval 30s
+        health_timeout 10s
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
