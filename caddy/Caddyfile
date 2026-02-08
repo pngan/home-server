@@ -57,8 +57,8 @@ photos.nganfamily.com {
 
 
 # --- Example aspire app ---
-apps.nganfamily.com {
-    reverse_proxy 192.168.1.11:8080 {
+ergo.cadassure.com {
+    reverse_proxy 192.168.1.11:3000 {
         health_uri /health
         health_interval 30s
         health_timeout 10s
