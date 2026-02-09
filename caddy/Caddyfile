@@ -55,15 +55,22 @@ photos.nganfamily.com {
     }
 }
 
+# --- Ergo cadassure app and keycloak auth server ---
 
-# --- Example aspire app ---
+auth.cadassure.com {
+    reverse_proxy 192.168.1.11:8180
+}
+
 ergo.cadassure.com {
-    reverse_proxy 192.168.1.11:3000 {
-        health_uri /health
-        health_interval 30s
-        health_timeout 10s
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
+    handle_path /api/* {
+        reverse_proxy 192.168.1.11:8080
+    }
+
+    handle {
+        reverse_proxy 192.168.1.11:3000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
     }
 }
