@@ -354,6 +354,7 @@ services:
   # docker compose run --rm hp-ml350-status
   # docker compose run --rm hp-ml350-power-on
   # docker compose run --rm hp-ml350-power-off
+  # docker compose up -d hp-ml350-scheduler
   hp-ml350-status:
     <<: *hp-ml350-redfish
     command:
@@ -386,6 +387,32 @@ services:
           -X POST "https://$HP_ML350_REDFISH_HOST/redfish/v1/Systems/1/Actions/ComputerSystem.Reset/" \
           -H "Content-Type: application/json" \
           -d '{"ResetType":"ForceOff"}'
+
+  hp-ml350-scheduler:
+    image: docker:cli
+    container_name: hp-ml350-scheduler
+    restart: unless-stopped
+    working_dir: /workspace
+    environment:
+      TZ: Pacific/Auckland
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./:/workspace:ro
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        cat <<'EOF' >/etc/crontabs/root
+        SHELL=/bin/sh
+        PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        TZ=Pacific/Auckland
+        15 7 * * 1-5 cd /workspace && docker compose run --rm hp-ml350-power-on >>/proc/1/fd/1 2>>/proc/1/fd/2
+        15 18 * * 1-5 cd /workspace && docker compose run --rm hp-ml350-power-off >>/proc/1/fd/1 2>>/proc/1/fd/2
+        EOF
+        exec crond -f -l 2
+    logging: *default-logging
 
   ##############################################################################
 # Mattermost - Team Collaboration
