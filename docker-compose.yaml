@@ -34,6 +34,14 @@ x-logging: &default-logging
     max-size: "3m"
     max-file: "3"
 
+x-hp-ml350-redfish: &hp-ml350-redfish
+  image: curlimages/curl:latest
+  environment:
+    HP_ML350_REDFISH_HOST: ${HP_ML350_REDFISH_HOST:-192.168.1.214}
+    HP_ML350_REDFISH_USERNAME: ${HP_ML350_REDFISH_USERNAME}
+    HP_ML350_REDFISH_PASSWORD: ${HP_ML350_REDFISH_PASSWORD}
+  logging: *default-logging
+
 services:
 
   ##############################################################################
@@ -339,6 +347,45 @@ services:
       - 8.8.8.8     # Google
       - 1.1.1.1     # Cloudflare
     logging: *default-logging
+
+  ##############################################################################
+  # HP ML350 Redfish power control
+  # Usage:
+  # docker compose run --rm hp-ml350-status
+  # docker compose run --rm hp-ml350-power-on
+  # docker compose run --rm hp-ml350-power-off
+  hp-ml350-status:
+    <<: *hp-ml350-redfish
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        curl -sk -u "$HP_ML350_REDFISH_USERNAME:$HP_ML350_REDFISH_PASSWORD" \
+          "https://$HP_ML350_REDFISH_HOST/redfish/v1/Systems/1/" \
+          | tr ',' '\n' \
+          | grep -m1 '"PowerState"'
+
+  hp-ml350-power-on:
+    <<: *hp-ml350-redfish
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        curl -sk -u "$HP_ML350_REDFISH_USERNAME:$HP_ML350_REDFISH_PASSWORD" \
+          -X POST "https://$HP_ML350_REDFISH_HOST/redfish/v1/Systems/1/Actions/ComputerSystem.Reset/" \
+          -H "Content-Type: application/json" \
+          -d '{"ResetType":"On"}'
+
+  hp-ml350-power-off:
+    <<: *hp-ml350-redfish
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        curl -sk -u "$HP_ML350_REDFISH_USERNAME:$HP_ML350_REDFISH_PASSWORD" \
+          -X POST "https://$HP_ML350_REDFISH_HOST/redfish/v1/Systems/1/Actions/ComputerSystem.Reset/" \
+          -H "Content-Type: application/json" \
+          -d '{"ResetType":"ForceOff"}'
 
   ##############################################################################
 # Mattermost - Team Collaboration
