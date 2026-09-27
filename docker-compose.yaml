@@ -16,6 +16,8 @@ volumes:
   mattermost-db-data:
   immich_db:
   model-cache:
+  # Persists cups printers.conf between restarts so the ET-16600 queue survives
+  cups_config:
   # New Docker-managed NFS volume for Immich Data
   immich_nfs_data:
     driver: local
@@ -395,6 +397,7 @@ services:
     working_dir: /workspace
     environment:
       TZ: Pacific/Auckland
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-home-server}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
@@ -413,6 +416,99 @@ services:
         EOF
         exec crond -f -l 2
     logging: *default-logging
+
+  ##############################################################################
+  # Epson EcoTank ET-16600 - CUPS print server + weekly nozzle maintenance print
+  #
+  # The printer is reached driverless over IPP Everywhere at PRINTER_URI
+  # (set PRINTER_IP in .env, e.g. PRINTER_IP=192.168.1.99).
+  #
+  # Usage:
+  # docker compose up -d cups            # print server + queue creation
+  # docker compose up -d printer-cron    # weekly job below
+  # docker compose run --rm nozzle-check     # print one A4 CMYK test page now
+  # docker compose run --rm printer-status   # queue + printer health report
+  #
+  # CUPS web UI: http://<this-host>:631  (queue lives in the cups_config volume)
+  cups:
+    image: olbat/cupsd:latest
+    container_name: cups
+    restart: unless-stopped
+    hostname: cups
+    environment:
+      TZ: Pacific/Auckland
+      PRINTER_IP: ${PRINTER_IP:-192.168.1.220}
+      PRINTER_QUEUE: ${PRINTER_QUEUE:-ET-16600}
+      PRINTER_URI: ${PRINTER_URI:-ipp://${PRINTER_IP:-192.168.1.220}/ipp/print}
+      PRINTER_DESCRIPTION: ${PRINTER_DESCRIPTION:-Epson EcoTank ET-16600}
+      PRINTER_WAIT_SECONDS: ${PRINTER_WAIT_SECONDS:-120}
+      INK_SCALE: ${INK_SCALE:-1.0}
+      JOB_TIMEOUT_SECONDS: ${JOB_TIMEOUT_SECONDS:-180}
+    ports:
+      - "631:631"
+    volumes:
+      - cups_config:/etc/cups
+      - ./printer:/printer:ro
+    networks:
+      - home-server-network
+    logging: *default-logging
+    command: ["/printer/scripts/run-cupsd.sh"]
+
+  # Convenience wrappers - both run the print scripts inside the cups container
+  # so they use the local CUPS socket instead of the network queue.
+  nozzle-check:
+    image: docker:cli
+    working_dir: /workspace
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-home-server}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/workspace:ro
+    depends_on:
+      - cups
+    logging: *default-logging
+    command: ["docker", "compose", "exec", "-T", "cups", "/printer/scripts/nozzle-check.sh"]
+
+  printer-status:
+    image: docker:cli
+    working_dir: /workspace
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-home-server}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/workspace:ro
+    depends_on:
+      - cups
+    logging: *default-logging
+    command: ["docker", "compose", "exec", "-T", "cups", "/printer/scripts/printer-status.sh"]
+
+  printer-cron:
+    image: docker:cli
+    container_name: printer-cron
+    restart: unless-stopped
+    working_dir: /workspace
+    environment:
+      TZ: Pacific/Auckland
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-home-server}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./:/workspace:ro
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        cat <<'EOF' >/etc/crontabs/root
+        SHELL=/bin/sh
+        PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        TZ=Pacific/Auckland
+        0 20 * * 0 cd /workspace && docker compose exec -T cups /printer/scripts/nozzle-check.sh >>/proc/1/fd/1 2>>/proc/1/fd/2
+        EOF
+        exec crond -f -l 2
+    logging: *default-logging
+    depends_on:
+      - cups
 
   ##############################################################################
 # Mattermost - Team Collaboration
