@@ -460,7 +460,7 @@ services:
       - home-server-network
     logging: *default-logging
     labels:
-      - "caddy=chat.seemyaccount.com"
+      - "caddy=message.nganfamily.com"
       - "caddy.reverse_proxy={{upstreams 8065}}"
 
   ##############################################################################
